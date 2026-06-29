@@ -1,0 +1,7 @@
+[submodule "extern/c-openhab-rest-client"]
+    path = extern/c-openhab-rest-client
+    url  = https://github.com/Michdo93/c-openhab-rest-client.git
+
+[submodule "extern/c-openhab-test-suite"]
+    path = extern/c-openhab-test-suite
+    url  = https://github.com/Michdo93/c-openhab-test-suite.git
