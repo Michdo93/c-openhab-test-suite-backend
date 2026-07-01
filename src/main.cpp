@@ -51,15 +51,26 @@ static void respond_err(httplib::Response& res, const std::string& msg, int code
     res.set_content(json{{"error", msg}}.dump(), "application/json");
 }
 
+// ─── JSON null-safe string helper ────────────────────────────────────────────
+// nlohmann body.value(key, "") throws type_error.302 when the field exists
+// but is JSON null (frontend sends null for empty optional fields).
+static std::string jsonStr(const json& body, const std::string& key) {
+    if (!body.contains(key) || body[key].is_null()) return "";
+    return body[key].get<std::string>();
+}
+
 // ─── Client factory ───────────────────────────────────────────────────────────
 
 static openhab_client_t* makeClient(const json& body) {
-    std::string url  = body.value("url",      "");
-    std::string user = body.value("username", "");
-    std::string pass = body.value("password", "");
-    std::string tok  = body.value("token",    "");
+    std::string url  = jsonStr(body, "url");
+    std::string user = jsonStr(body, "username");
+    std::string pass = jsonStr(body, "password");
+    std::string tok  = jsonStr(body, "token");
     if (url.empty()) throw std::invalid_argument("url is required");
     while (!url.empty() && url.back()=='/') url.pop_back();
+    // Normalize: add http:// if no protocol given (bare host like 192.168.0.5:8080)
+    if (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0)
+        url = "http://" + url;
     return openhab_client_create(
         url.c_str(),
         user.empty() ? nullptr : user.c_str(),
@@ -253,7 +264,7 @@ int main() {
     httplib::Server svr;
 
     // OPTIONS preflight
-    svr.Options("/(.*)", [](const httplib::Request&, httplib::Response& res) {
+    svr.Options(".*", [](const httplib::Request&, httplib::Response& res) {
         setCORS(res); res.status = 204;
     });
 
